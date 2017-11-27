@@ -1,0 +1,25 @@
+version: 2
+jobs:
+  build:
+    working_directory: ~/probot-changelog
+    docker:
+      - image: circleci/node:8
+    steps:
+      - checkout
+      - restore_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+      - run:
+          command: npm install
+      - save_cache:
+          key: dependency-cache-{{ checksum "package.json" }}
+          paths:
+            - ./node_modules
+      - run: npm run lint
+      - run:
+          command: npm run ci
+          environment:
+            JEST_JUNIT_OUTPUT: "reports/junit/test-results.xml"
+      - store_test_results:
+          path: reports/junit
+      - store_artifacts:
+          path: reports/junit
