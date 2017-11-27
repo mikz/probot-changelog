@@ -1,0 +1,6 @@
+filename: changelog.md
+include:
+  - app
+  - /\.js$/
+exclude:
+  - __tests__
