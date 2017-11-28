@@ -88,17 +88,27 @@ module.exports = (robot) => {
     return context.github.repos.createStatus(params)
   }
 
+  function log (context, object) {
+    const ctx = { event: context.event, action: context.payload.action }
+    const url = context.payload.pull_request.html_url
+
+    robot.log(ctx, context.issue({ url, ...object }))
+  }
+
   async function checkChangelog (context) {
     const config = await context.config('changelog.yml')
 
     if (!config) {
       // don't try to run analysis without a config
+      log(context, { status: 'missing config' })
       return
     }
 
     const files = await changedFiles(context)
     const changes = Object.assign.apply(null, files.map((file) => { return { [file.filename]: file } }))
     const status = changelogStatus(config, changes)
+
+    log(context, { status: status })
 
     return setStatus(context, status)
   }
