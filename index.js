@@ -8,6 +8,8 @@ const Status = Object.seal({
 
 module.exports = (robot) => {
   robot.on('pull_request.synchronize', checkChangelog)
+  robot.on('pull_request.opened', checkChangelog)
+  robot.on('pull_request.reopened', checkChangelog)
 
   async function results (context, path = '.') {
     return context.github.pullRequests.getFiles(context.issue({ path: path, per_page: 1 }))
