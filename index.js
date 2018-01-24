@@ -10,6 +10,8 @@ module.exports = (robot) => {
   robot.on('pull_request.synchronize', checkChangelog)
   robot.on('pull_request.opened', checkChangelog)
   robot.on('pull_request.reopened', checkChangelog)
+  robot.on('pull_request.labeled', checkChangelog)
+  robot.on('pull_request.unlabeled', checkChangelog)
 
   async function results (context, path = '.') {
     return context.github.pullRequests.getFiles(context.issue({ path: path, per_page: 1 }))
@@ -78,6 +80,8 @@ module.exports = (robot) => {
   }
 
   async function setStatus (context, status) {
+    log(context, { status: status })
+
     const params = context.repo({
       sha: context.payload.pull_request.head.sha,
       state: status,
@@ -95,6 +99,21 @@ module.exports = (robot) => {
     robot.log(ctx, context.issue({ url, ...object }))
   }
 
+  async function hasLabel (context, label) {
+    if (!label) { return }
+
+    const l = label.toLowerCase()
+    const labels = await context.github.issues.getIssueLabels(context.issue())
+
+    return labels.data.some(label => label.name.toLowerCase() === l)
+  }
+
+  async function skipChangelog (context, config) {
+    const skipLabel = config.skipLabel || 'skip-changelog'
+
+    return hasLabel(context, skipLabel)
+  }
+
   async function checkChangelog (context) {
     const config = await context.config('changelog.yml')
 
@@ -104,11 +123,14 @@ module.exports = (robot) => {
       return
     }
 
+    if (await skipChangelog(context, config)) {
+      log(context, { status: 'skipping changelog' })
+      return setStatus(context, Status.SUCCESS)
+    }
+
     const files = await changedFiles(context)
     const changes = Object.assign.apply(null, files.map((file) => { return { [file.filename]: file } }))
     const status = changelogStatus(config, changes)
-
-    log(context, { status: status })
 
     return setStatus(context, status)
   }
