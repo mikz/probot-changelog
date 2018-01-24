@@ -1,9 +1,10 @@
 'use strict'
 
 const Status = Object.seal({
-  FAIL: 'failure',
-  SUCCESS: 'success',
-  PROGRESS: 'pending'
+  FAIL: Symbol('failure'),
+  SUCCESS: Symbol('success'),
+  SKIPPED: Symbol('success'),
+  PROGRESS: Symbol('pending')
 })
 
 module.exports = (robot) => {
@@ -72,6 +73,8 @@ module.exports = (robot) => {
     switch (status) {
       case Status.SUCCESS:
         return 'changelog entry included'
+      case Status.SKIPPED:
+        return 'changelog entry not needed'
       case Status.PROGRESS:
         return 'changelog entry missing'
       case Status.FAIL:
@@ -84,7 +87,7 @@ module.exports = (robot) => {
 
     const params = context.repo({
       sha: context.payload.pull_request.head.sha,
-      state: status,
+      state: status.toString().slice(7, -1),
       target_url: 'https://github.com/apps/probot-changelog',
       description: descriptionFor(status),
       context: 'changelog'
@@ -123,12 +126,13 @@ module.exports = (robot) => {
       return
     }
 
-    if (await skipChangelog(context, config)) {
+    const files = await changedFiles(context)
+
+    if (await skipChangelog(context, config) || !files.some(itself)) {
       log(context, { status: 'skipping changelog' })
-      return setStatus(context, Status.SUCCESS)
+      return setStatus(context, Status.SKIPPED)
     }
 
-    const files = await changedFiles(context)
     const changes = Object.assign.apply(null, files.map((file) => { return { [file.filename]: file } }))
     const status = changelogStatus(config, changes)
 
