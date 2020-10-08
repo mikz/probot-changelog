@@ -14,14 +14,10 @@ module.exports = (robot) => {
   robot.on('pull_request.labeled', checkChangelog)
   robot.on('pull_request.unlabeled', checkChangelog)
 
-  async function results (context, path = '.') {
-    return context.github.pullRequests.getFiles(context.issue({ path: path, per_page: 1 }))
-  }
-
   const itself = _ => _
 
   async function changedFiles (context) {
-    return context.github.paginate(results(context), res => {
+    return context.github.paginate(context.github.pulls.listFiles, context.pullRequest(), res => {
       return res.data.map(itself)
     })
   }
@@ -92,7 +88,7 @@ module.exports = (robot) => {
       description: descriptionFor(status),
       context: 'changelog'
     })
-    return context.github.repos.createStatus(params)
+    return context.github.repos.createCommitStatus(params)
   }
 
   function log (context, object) {
@@ -106,7 +102,7 @@ module.exports = (robot) => {
     if (!label) { return }
 
     const l = label.toLowerCase()
-    const labels = await context.github.issues.getIssueLabels(context.issue())
+    const labels = await context.github.issues.listLabelsOnIssue(context.issue())
 
     return labels.data.some(label => label.name.toLowerCase() === l)
   }
